@@ -15,38 +15,6 @@
         android:layout_alignParentRight="true"
         android:layout_alignParentEnd="true"
         android:layout_alignParentBottom="true"
-        android:layout_below="@+id/textMessage" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/buttonSendMessage"
-        android:onClick="buttonSendMessageClick"
-        android:text="GO"
-        android:enabled="true"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:layout_marginTop="106dp" />
-
-    <EditText
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/editMessage"
-        android:layout_toStartOf="@+id/buttonSendMessage"
-        android:layout_toLeftOf="@+id/buttonSendMessage"
-        android:layout_above="@+id/textMessage"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/textMessage"
-        android:layout_below="@+id/buttonSendMessage"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_alignRight="@+id/buttonSendMessage"
-        android:layout_alignEnd="@+id/buttonSendMessage" />
+        android:layout_alignParentTop="true" />
 
 </RelativeLayout>

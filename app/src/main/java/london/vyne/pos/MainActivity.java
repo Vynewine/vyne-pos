@@ -9,17 +9,14 @@ import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -27,14 +24,12 @@ import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class MainActivity extends Activity {
 
 
-    public static final String EXTRA_MESSAGE = "message";
-    public static final String PROPERTY_REG_ID = "registration_id";
+    public static final String PROPERTY_REG_ID = "registrationId";
     public static final String PREFS_NAME = "VynePrefsFile";
     public static final String DEVICE_ID = "deviceId";
 
@@ -44,7 +39,6 @@ public class MainActivity extends Activity {
     private static final String PROPERTY_APP_VERSION = "appVersion";
     private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
 
-
     /**
      * Substitute you own sender ID here. This is the project number you got
      * from the API Console, as described in "Getting Started."
@@ -52,8 +46,7 @@ public class MainActivity extends Activity {
     String SENDER_ID = "662241065743";
 
     GoogleCloudMessaging gcm;
-    AtomicInteger msgId = new AtomicInteger();
-    SharedPreferences prefs;
+    SharedPreferences preferences;
     Context context;
     String regid;
 
@@ -62,62 +55,75 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
+
+        context = getApplicationContext();
+        preferences = getPreferences();
+
+        //Check if device is setup.
+        String deviceId = preferences.getString(DEVICE_ID, "");
+
+        if (deviceId.isEmpty()) {
+            ShowSettings();
+        }
+
+        showVynePage(deviceId);
+
+    }
+
+    private void showVynePage(String deviceId) {
         vynePage = (WebView) findViewById(R.id.webView);
 
-        String androidId = Settings.Secure.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
-
-        vynePage.loadUrl("http://172.16.224.156:3000/login?device=" + androidId);
+        final JavaScriptInterface javaScriptInterface
+                = new JavaScriptInterface(this);
 
         WebSettings webSettings = vynePage.getSettings();
         webSettings.setJavaScriptEnabled(true);
-
         vynePage.setWebViewClient(new WebViewClient());
+        vynePage.addJavascriptInterface(javaScriptInterface, "AndroidFunction");
+        vynePage.loadUrl("http://172.16.224.156:3000/login?device=" + deviceId);
+    }
 
-        final TextView textView = (TextView) findViewById(R.id.textMessage);
-        textView.setText("initiated !");
-
-        context = getApplicationContext();
+    //After we authenticate user with the device
+    private void setGCMRegistration() {
 
         if (checkPlayServices()) {
 
-            Log.d(TAG, "Devise has Play Services");
-
             gcm = GoogleCloudMessaging.getInstance(this);
-
             regid = getRegistrationId(context);
-
-            Log.d(TAG, "regid: " + regid);
-
             //unRegisterInBackground();
-
-            Log.d(TAG, "reg is empty:" + regid.length());
-            Log.d(TAG, "reg is empty:" + regid.isEmpty());
-
-            if (regid.isEmpty()) {
-                registerInBackground();
-            }
+            registerInBackground();
+//            if (regid.isEmpty()) {
+//                registerInBackground();
+//            }
         } else {
             Log.i(TAG, "No valid Google Play Services APK found.");
         }
     }
 
-    final class jsInterface {
-
-        /**
-         * This is not called on the UI thread. Post a runnable to invoke
-         * loadUrl on the UI thread.
-         */
-        public void clickOnAndroid() {
-            handler.post(new Runnable() {
-                public void run() {
-                    vynePage.loadUrl("javascript:wave()");
-
-                }
-            });
-
-        }
+    private void confirmRegistration() {
+        String deviceId = preferences.getString(DEVICE_ID, "");
+        String registrationId = preferences.getString(PROPERTY_REG_ID, "");
+        vynePage = (WebView) findViewById(R.id.webView);
+        vynePage.loadUrl("javascript:confirmRegistration('" + deviceId + "', '" + registrationId + "')");
     }
 
+    public class JavaScriptInterface {
+        Context jsContext;
+
+        JavaScriptInterface(Context c) {
+            jsContext = c;
+        }
+
+        @JavascriptInterface
+        public void registerDevice() {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    setGCMRegistration();
+                }
+            });
+        }
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -143,7 +149,7 @@ public class MainActivity extends Activity {
 
     /**
      * Launching settings
-     * */
+     */
     private void ShowSettings() {
         Intent i = new Intent(MainActivity.this, SettingsActivity.class);
         startActivity(i);
@@ -159,36 +165,6 @@ public class MainActivity extends Activity {
         // If it wasn't the Back key or there's no web page history, bubble up to the default
         // system behavior (probably exit the activity)
         return super.onKeyDown(keyCode, event);
-    }
-
-    // Send an upstream message.
-    public void buttonSendMessageClick(View view) {
-
-        final TextView textView = (TextView) findViewById(R.id.textMessage);
-        final EditText editText = (EditText) findViewById(R.id.editMessage);
-
-        new AsyncTask<Void, Void, String>() {
-            @Override
-            protected String doInBackground(Void... params) {
-                String msg;
-                try {
-                    Bundle data = new Bundle();
-                    data.putString("my_message", "Hello World" + editText.getText());
-                    data.putString("my_action", "com.google.android.gcm.demo.app.ECHO_NOW");
-                    String id = Integer.toString(msgId.incrementAndGet());
-                    gcm.send(SENDER_ID + "@gcm.googleapis.com", id, data);
-                    msg = "Sent message";
-                } catch (IOException ex) {
-                    msg = "Error :" + ex.getMessage();
-                }
-                return msg;
-            }
-
-            @Override
-            protected void onPostExecute(String msg) {
-                textView.setText(msg);
-            }
-        }.execute(null, null, null);
     }
 
     // You need to do the Play Services APK check here too.
@@ -227,7 +203,7 @@ public class MainActivity extends Activity {
      * registration ID.
      */
     private String getRegistrationId(Context context) {
-        final SharedPreferences prefs = getGCMPreferences(context);
+        final SharedPreferences prefs = getPreferences();
         String registrationId = prefs.getString(PROPERTY_REG_ID, "");
         if (registrationId.isEmpty()) {
             Log.i(TAG, "Registration not found.");
@@ -250,10 +226,8 @@ public class MainActivity extends Activity {
     /**
      * @return Application's {@code SharedPreferences}.
      */
-    private SharedPreferences getGCMPreferences(Context context) {
-        // This sample app persists the registration ID in shared preferences, but
-        // how you store the regID in your app is up to you.
-        return getSharedPreferences(MainActivity.class.getSimpleName(),
+    private SharedPreferences getPreferences() {
+        return getSharedPreferences(PREFS_NAME,
                 Context.MODE_PRIVATE);
     }
 
@@ -278,41 +252,49 @@ public class MainActivity extends Activity {
      * shared preferences.
      */
     private void registerInBackground() {
-        new AsyncTask<Void, Void, String>() {
+
+        new AsyncTask<Void, Void, Boolean>() {
+            Exception error;
+
             @Override
-            protected String doInBackground(Void... params) {
-                String msg = "";
+            protected Boolean doInBackground(Void... params) {
                 try {
                     if (gcm == null) {
                         gcm = GoogleCloudMessaging.getInstance(context);
                     }
                     regid = gcm.register(SENDER_ID);
-                    msg = "Device registered, registration ID=" + regid;
 
                     // You should send the registration ID to your server over HTTP,
                     // so it can use GCM/HTTP or CCS to send messages to your app.
                     // The request to your server should be authenticated if your app
                     // is using accounts.
-                    sendRegistrationIdToBackend(regid);
-
-                    // For this demo: we don't need to send it because the device
-                    // will send upstream messages to a server that echo back the
-                    // message using the 'from' address in the message.
+                    //sendRegistrationIdToBackend(regid);
 
                     // Persist the regID - no need to register again.
                     storeRegistrationId(context, regid);
+
+                    return true;
+
                 } catch (IOException ex) {
-                    msg = "Error :" + ex.getMessage();
-                    // If there is an error, don't just keep trying to register.
-                    // Require the user to click a button again, or perform
-                    // exponential back-off.
+                    Log.e(TAG, "exception", ex);
+                    error = ex;
+                    return false;
+
+                } catch (Exception ex) {
+                    Log.e(TAG, "exception", ex);
+                    error = ex;
+                    return false;
                 }
-                return msg;
             }
 
             @Override
-            protected void onPostExecute(String msg) {
-                //mDisplay.append(msg + "\n");
+            protected void onPostExecute(Boolean result) {
+                if(result) {
+                    confirmRegistration();
+                } else {
+                    Toast.makeText(getApplicationContext(), error.getMessage(),
+                            Toast.LENGTH_LONG).show();
+                }
             }
         }.execute(null, null, null);
     }
@@ -349,6 +331,7 @@ public class MainActivity extends Activity {
      */
     private void sendRegistrationIdToBackend(String regid) {
         //TODO: Your implementation here.
+        //This is mainly used when registration expires.
         Log.i(TAG, "New Registration Id: " + regid);
     }
 
@@ -360,7 +343,7 @@ public class MainActivity extends Activity {
      * @param regId   registration ID
      */
     private void storeRegistrationId(Context context, String regId) {
-        final SharedPreferences prefs = getGCMPreferences(context);
+        final SharedPreferences prefs = getPreferences();
         int appVersion = getAppVersion(context);
         Log.i(TAG, "Saving regId: " + regId + " app version " + appVersion);
         SharedPreferences.Editor editor = prefs.edit();
@@ -370,7 +353,7 @@ public class MainActivity extends Activity {
     }
 
     private void clearRegistrationId(Context context) {
-        final SharedPreferences prefs = getGCMPreferences(context);
+        final SharedPreferences prefs = getPreferences();
         int appVersion = getAppVersion(context);
         Log.i(TAG, "Saving regId on app version " + appVersion);
         SharedPreferences.Editor editor = prefs.edit();
