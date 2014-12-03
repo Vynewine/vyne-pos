@@ -2,11 +2,14 @@ package london.vyne.pos;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -17,6 +20,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
@@ -30,6 +34,8 @@ public class MainActivity extends Activity {
 
     private static final String TAG = MainActivity.class.getName();
     private WebView vynePage;
+    private Handler handler = new Handler();
+
     public static final String EXTRA_MESSAGE = "message";
     public static final String PROPERTY_REG_ID = "registration_id";
     private static final String PROPERTY_APP_VERSION = "appVersion";
@@ -53,7 +59,11 @@ public class MainActivity extends Activity {
 
         setContentView(R.layout.activity_main);
         vynePage = (WebView) findViewById(R.id.webView);
-        vynePage.loadUrl("http://www.vyne.london");
+
+        String androidId = Settings.Secure.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
+
+        vynePage.loadUrl("http://172.16.224.156:3000/login?device=" + androidId);
+
         WebSettings webSettings = vynePage.getSettings();
         webSettings.setJavaScriptEnabled(true);
 
@@ -61,14 +71,6 @@ public class MainActivity extends Activity {
 
         final TextView textView = (TextView) findViewById(R.id.textMessage);
         textView.setText("initiated !");
-
-        //final Button button = (Button) findViewById(R.id.buttonSendMessage);
-//        button.setOnClickListener(new View.OnClickListener() {
-//            public void onClick(View v) {
-//                // Perform action on click
-//                textView.setText("clicked!");
-//            }
-//        });
 
         context = getApplicationContext();
 
@@ -95,6 +97,23 @@ public class MainActivity extends Activity {
         }
     }
 
+    final class jsInterface {
+
+        /**
+         * This is not called on the UI thread. Post a runnable to invoke
+         * loadUrl on the UI thread.
+         */
+        public void clickOnAndroid() {
+            handler.post(new Runnable() {
+                public void run() {
+                    vynePage.loadUrl("javascript:wave()");
+
+                }
+            });
+
+        }
+    }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -108,14 +127,22 @@ public class MainActivity extends Activity {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+        switch (item.getItemId()) {
+            case R.id.action_settings:
+                ShowSettings();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
+    }
 
-        return super.onOptionsItemSelected(item);
+    /**
+     * Launching settings
+     * */
+    private void ShowSettings() {
+        Intent i = new Intent(MainActivity.this, SettingsActivity.class);
+        startActivity(i);
     }
 
     @Override
@@ -135,7 +162,6 @@ public class MainActivity extends Activity {
 
         final TextView textView = (TextView) findViewById(R.id.textMessage);
         final EditText editText = (EditText) findViewById(R.id.editMessage);
-
 
         new AsyncTask<Void, Void, String>() {
             @Override
