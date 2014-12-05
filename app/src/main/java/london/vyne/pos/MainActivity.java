@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -25,13 +26,7 @@ import com.google.android.gms.gcm.GoogleCloudMessaging;
 
 import java.io.IOException;
 
-
 public class MainActivity extends Activity {
-
-
-    public static final String PROPERTY_REG_ID = "registrationId";
-    public static final String PREFS_NAME = "VynePrefsFile";
-    public static final String DEVICE_ID = "deviceId";
 
     private static final String TAG = MainActivity.class.getName();
     private WebView vynePage;
@@ -60,17 +55,56 @@ public class MainActivity extends Activity {
         preferences = getPreferences();
 
         //Check if device is setup.
-        String deviceId = preferences.getString(DEVICE_ID, "");
+        String deviceKey = preferences.getString(getString(R.string.pref_device_key), "");
 
-        if (deviceId.isEmpty()) {
-            ShowSettings();
+        if (deviceKey.isEmpty()) {
+            showSettings();
+        } else {
+            showVynePage(deviceKey);
         }
-
-        showVynePage(deviceId);
-
     }
 
-    private void showVynePage(String deviceId) {
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+        switch (item.getItemId()) {
+            case R.id.action_settings:
+                showSettings();
+                return true;
+            case R.id.action_refresh:
+                vynePage = (WebView) findViewById(R.id.webView);
+                vynePage.reload();
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // Check if the key event was the Back button and if there's history
+        if ((keyCode == KeyEvent.KEYCODE_BACK) && vynePage.canGoBack()) {
+            vynePage.goBack();
+            return true;
+        }
+        // If it wasn't the Back key or there's no web page history, bubble up to the default
+        // system behavior (probably exit the activity)
+        return super.onKeyDown(keyCode, event);
+    }
+
+    // You need to do the Play Services APK check here too.
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkPlayServices();
+    }
+
+    private void showVynePage(String deviceKey) {
         vynePage = (WebView) findViewById(R.id.webView);
 
         final JavaScriptInterface javaScriptInterface
@@ -80,31 +114,12 @@ public class MainActivity extends Activity {
         webSettings.setJavaScriptEnabled(true);
         vynePage.setWebViewClient(new WebViewClient());
         vynePage.addJavascriptInterface(javaScriptInterface, "AndroidFunction");
-        vynePage.loadUrl("http://172.16.224.156:3000/login?device=" + deviceId);
+        vynePage.loadUrl("http://192.168.0.5:3000/?device=" + deviceKey);
     }
 
-    //After we authenticate user with the device
-    private void setGCMRegistration() {
-
-        if (checkPlayServices()) {
-
-            gcm = GoogleCloudMessaging.getInstance(this);
-            regid = getRegistrationId(context);
-            //unRegisterInBackground();
-            registerInBackground();
-//            if (regid.isEmpty()) {
-//                registerInBackground();
-//            }
-        } else {
-            Log.i(TAG, "No valid Google Play Services APK found.");
-        }
-    }
-
-    private void confirmRegistration() {
-        String deviceId = preferences.getString(DEVICE_ID, "");
-        String registrationId = preferences.getString(PROPERTY_REG_ID, "");
-        vynePage = (WebView) findViewById(R.id.webView);
-        vynePage.loadUrl("javascript:confirmRegistration('" + deviceId + "', '" + registrationId + "')");
+    private void showSettings() {
+        Intent i = new Intent(MainActivity.this, SettingsActivity.class);
+        startActivity(i);
     }
 
     public class JavaScriptInterface {
@@ -125,53 +140,23 @@ public class MainActivity extends Activity {
         }
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
+    //After we authenticate user with the device
+    private void setGCMRegistration() {
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
+        if (checkPlayServices()) {
+            //unRegisterInBackground();
+            registerInBackground();
 
-        switch (item.getItemId()) {
-            case R.id.action_settings:
-                ShowSettings();
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
+        } else {
+            Log.i(TAG, "No valid Google Play Services APK found.");
         }
     }
 
-    /**
-     * Launching settings
-     */
-    private void ShowSettings() {
-        Intent i = new Intent(MainActivity.this, SettingsActivity.class);
-        startActivity(i);
-    }
-
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // Check if the key event was the Back button and if there's history
-        if ((keyCode == KeyEvent.KEYCODE_BACK) && vynePage.canGoBack()) {
-            vynePage.goBack();
-            return true;
-        }
-        // If it wasn't the Back key or there's no web page history, bubble up to the default
-        // system behavior (probably exit the activity)
-        return super.onKeyDown(keyCode, event);
-    }
-
-    // You need to do the Play Services APK check here too.
-    @Override
-    protected void onResume() {
-        super.onResume();
-        checkPlayServices();
+    private void confirmRegistration() {
+        String deviceKey = preferences.getString(getString(R.string.pref_device_key), "");
+        String registrationId = preferences.getString(Constants.PROPERTY_REG_ID, "");
+        vynePage = (WebView) findViewById(R.id.webView);
+        vynePage.loadUrl("javascript:confirmRegistration('" + deviceKey + "', '" + registrationId + "')");
     }
 
     /**
@@ -204,7 +189,7 @@ public class MainActivity extends Activity {
      */
     private String getRegistrationId(Context context) {
         final SharedPreferences prefs = getPreferences();
-        String registrationId = prefs.getString(PROPERTY_REG_ID, "");
+        String registrationId = prefs.getString(Constants.PROPERTY_REG_ID, "");
         if (registrationId.isEmpty()) {
             Log.i(TAG, "Registration not found.");
             return "";
@@ -227,8 +212,7 @@ public class MainActivity extends Activity {
      * @return Application's {@code SharedPreferences}.
      */
     private SharedPreferences getPreferences() {
-        return getSharedPreferences(PREFS_NAME,
-                Context.MODE_PRIVATE);
+        return PreferenceManager.getDefaultSharedPreferences(context);
     }
 
     /**
@@ -289,7 +273,7 @@ public class MainActivity extends Activity {
 
             @Override
             protected void onPostExecute(Boolean result) {
-                if(result) {
+                if (result) {
                     confirmRegistration();
                 } else {
                     Toast.makeText(getApplicationContext(), error.getMessage(),
@@ -347,7 +331,7 @@ public class MainActivity extends Activity {
         int appVersion = getAppVersion(context);
         Log.i(TAG, "Saving regId: " + regId + " app version " + appVersion);
         SharedPreferences.Editor editor = prefs.edit();
-        editor.putString(PROPERTY_REG_ID, regId);
+        editor.putString(Constants.PROPERTY_REG_ID, regId);
         editor.putInt(PROPERTY_APP_VERSION, appVersion);
         editor.apply();
     }
@@ -357,7 +341,7 @@ public class MainActivity extends Activity {
         int appVersion = getAppVersion(context);
         Log.i(TAG, "Saving regId on app version " + appVersion);
         SharedPreferences.Editor editor = prefs.edit();
-        editor.putString(PROPERTY_REG_ID, "");
+        editor.putString(Constants.PROPERTY_REG_ID, "");
         editor.putInt(PROPERTY_APP_VERSION, appVersion);
         editor.apply();
     }

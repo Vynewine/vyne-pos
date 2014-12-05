@@ -25,8 +25,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.RingtoneManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
+import android.widget.Toast;
 
 /**
  * This {@code IntentService} does the actual handling of the GCM message.
@@ -103,5 +106,19 @@ public class GcmIntentService extends IntentService {
 
         builder.setContentIntent(contentIntent);
         notificationManager.notify(NOTIFICATION_ID, builder.build());
+
+        Handler h = new Handler(Looper.getMainLooper());
+
+        final String message = msg;
+
+        h.post(new Runnable(){
+
+            public void run() {
+                Toast.makeText(getApplicationContext(), message,
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+
+
     }
 }
