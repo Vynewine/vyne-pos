@@ -17,30 +17,45 @@ public class SettingsFragment extends PreferenceFragment
         addPreferencesFromResource(R.xml.preferences);
 
         SharedPreferences preferences = getPreferenceScreen().getSharedPreferences();
-        EditTextPreference editTextPref = (EditTextPreference) findPreference(getString(R.string.pref_device_key));
+
+        EditTextPreference deviceKeyPref = (EditTextPreference) findPreference(getString(R.string.pref_device_key));
+        EditTextPreference urlPref = (EditTextPreference) findPreference(getString(R.string.pref_vyne_url_key));
+
         String deviceKey = preferences.getString(getString(R.string.pref_device_key), getString(R.string.pref_device_description));
+        String url = preferences.getString(getString(R.string.pref_vyne_url_key), getString(R.string.pref_vyne_url_description));
+
 
         if (deviceKey.isEmpty()) {
             deviceKey = getString(R.string.pref_device_description);
         }
 
-        editTextPref.setSummary(deviceKey);
+        if (url.isEmpty()) {
+            url = getString(R.string.pref_vyne_url_description);
+        }
+
+        deviceKeyPref.setSummary(deviceKey);
+        urlPref.setSummary(url);
 
     }
 
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
 
+        Preference preference = findPreference(key);
+        String defaultValue = "";
+
         if (key.equals(getString(R.string.pref_device_key))) {
-            Preference connectionPref = findPreference(key);
-
-            String deviceKey = sharedPreferences.getString(key, getString(R.string.pref_device_description));
-
-            if (deviceKey.isEmpty()) {
-                deviceKey = getString(R.string.pref_device_description);
-            }
-
-            connectionPref.setSummary(deviceKey);
+            defaultValue = getString(R.string.pref_device_description);
+        } else if (key.equals(getString(R.string.pref_vyne_url_key))) {
+            defaultValue = getString(R.string.pref_vyne_url_description);
         }
+
+        String value = sharedPreferences.getString(key, defaultValue);
+
+        if (value.isEmpty()) {
+            value = defaultValue;
+        }
+
+        preference.setSummary(value);
     }
 
     @Override

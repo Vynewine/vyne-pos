@@ -56,8 +56,9 @@ public class MainActivity extends Activity {
 
         //Check if device is setup.
         String deviceKey = preferences.getString(getString(R.string.pref_device_key), "");
+        String vyneUrl = preferences.getString(getString(R.string.pref_vyne_url_key), "");
 
-        if (deviceKey.isEmpty()) {
+        if (deviceKey.isEmpty() || vyneUrl.isEmpty()) {
             showSettings();
         } else {
             showVynePage(deviceKey);
@@ -105,6 +106,9 @@ public class MainActivity extends Activity {
     }
 
     private void showVynePage(String deviceKey) {
+
+        String vyneUrl = preferences.getString(getString(R.string.pref_vyne_url_key), "");
+
         vynePage = (WebView) findViewById(R.id.webView);
 
         final JavaScriptInterface javaScriptInterface
@@ -114,7 +118,8 @@ public class MainActivity extends Activity {
         webSettings.setJavaScriptEnabled(true);
         vynePage.setWebViewClient(new WebViewClient());
         vynePage.addJavascriptInterface(javaScriptInterface, "AndroidFunction");
-        vynePage.loadUrl("http://192.168.0.5:3000/?device=" + deviceKey);
+        vynePage.loadUrl(vyneUrl + "/?device=" + deviceKey);
+
     }
 
     private void showSettings() {

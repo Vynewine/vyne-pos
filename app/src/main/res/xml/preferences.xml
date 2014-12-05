@@ -5,4 +5,10 @@
         android:summary="@string/pref_device_description"
         android:key="@string/pref_device_key"
         />
+
+    <EditTextPreference
+        android:title="@string/pref_vyne_url_title"
+        android:summary="@string/pref_vyne_url_description"
+        android:key="@string/pref_vyne_url_key"
+        />
 </PreferenceScreen>
