@@ -118,7 +118,7 @@ public class MainActivity extends Activity {
         webSettings.setJavaScriptEnabled(true);
         vynePage.setWebViewClient(new WebViewClient());
         vynePage.addJavascriptInterface(javaScriptInterface, "AndroidFunction");
-        vynePage.loadUrl(vyneUrl + "/?device=" + deviceKey);
+        vynePage.loadUrl(vyneUrl.trim() + "/?device=" + deviceKey.trim());
 
     }
 
@@ -252,6 +252,8 @@ public class MainActivity extends Activity {
                         gcm = GoogleCloudMessaging.getInstance(context);
                     }
                     regid = gcm.register(SENDER_ID);
+
+                    Log.i(TAG, "Device registered with regid: " + regid);
 
                     // You should send the registration ID to your server over HTTP,
                     // so it can use GCM/HTTP or CCS to send messages to your app.
